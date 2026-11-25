@@ -1,0 +1,25 @@
+name: Daily Hindi Kids Cartoon
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install edge-tts pillow moviepy
+
+      - name: Show project files
+        run: |
+          ls -la
+          ls -la scripts
