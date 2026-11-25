@@ -1,9 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
-import math
-import subprocess
-import shutil
-import json
+import math, subprocess, shutil, json
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "output/kids"
@@ -17,122 +14,142 @@ TOTAL = FPS * DURATION
 OUT.mkdir(parents=True, exist_ok=True)
 FRAMES.mkdir(parents=True, exist_ok=True)
 
-# Load generated story
-story_file = OUT / "story.json"
-
-if story_file.exists():
-    data = json.loads(story_file.read_text(encoding="utf-8"))
-    story_text = data.get("story", "")
-    story_title = data.get("title", "प्यारी कहानी")
-else:
-    story_text = "एक समय की बात है। चिंटू खरगोश ने अपने दोस्त की मदद की।"
-    story_title = "चिंटू की कहानी"
-
-# Split story into short captions
-story = []
-for sentence in story_text.replace("\n", " ").split("।"):
-    words = sentence.strip().split()
-    for i in range(0, len(words), 5):
-        caption = " ".join(words[i:i+5])
-        if caption:
-            story.append(caption)
-
-if not story:
-    story = ["एक प्यारी कहानी"]
+data = json.loads((OUT / "story.json").read_text(encoding="utf-8")) if (OUT / "story.json").exists() else {}
+story_text = data.get("story", "एक समय की बात है। सभी दोस्त मिलकर खुश रहते थे।")
+title = data.get("title", "प्यारी कहानी")
 
 font_paths = [
     "/system/fonts/NotoSansDevanagari-VF.ttf",
-    "/system/fonts/NotoSansDevanagariUI-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 ]
-
 font_path = next((p for p in font_paths if Path(p).exists()), None)
 if not font_path:
-    raise SystemExit("Hindi font nahi mila.")
+    raise SystemExit("Hindi font nahi mila")
 
-font = ImageFont.truetype(font_path, 27)
-title_font = ImageFont.truetype(font_path, 34)
+font = ImageFont.truetype(font_path, 25)
+title_font = ImageFont.truetype(font_path, 30)
 
-def draw_bunny(draw, x, y, t):
-    bounce = int(math.sin(t * 5) * 9)
+def wrap(text, f, max_width):
+    lines, line = [], ""
+    for word in text.split():
+        test = (line + " " + word).strip()
+        if f.getlength(test) <= max_width:
+            line = test
+        else:
+            if line:
+                lines.append(line)
+            line = word
+    if line:
+        lines.append(line)
+    return "\n".join(lines)
+
+sentences = [s.strip() for s in story_text.replace("\n", " ").split("।") if s.strip()]
+captions = []
+for sentence in sentences:
+    words = sentence.split()
+    for i in range(0, len(words), 5):
+        captions.append(" ".join(words[i:i+5]))
+if not captions:
+    captions = ["एक प्यारी कहानी"]
+
+def animal(d, kind, x, y, t):
+    bounce = int(math.sin(t * 5) * 7)
     y += bounce
+    colors = {
+        "bunny": "#eeeeee",
+        "mouse": "#b9a0a0",
+        "parrot": "#35bd65",
+        "cat": "#f4a45c",
+        "panda": "#eeeeee"
+    }
+    c = colors[kind]
 
-    draw.ellipse((x-48, y-55, x+48, y+55), fill="#eeeeee")
-    draw.ellipse((x-38, y-115, x-12, y-35), fill="#eeeeee")
-    draw.ellipse((x+12, y-115, x+38, y-35), fill="#eeeeee")
-    draw.ellipse((x-30, y-105, x-19, y-45), fill="#f4a6b8")
-    draw.ellipse((x+19, y-105, x+30, y-45), fill="#f4a6b8")
-    draw.ellipse((x-20, y-15, x-10, y-3), fill="black")
-    draw.ellipse((x+10, y-15, x+20, y-3), fill="black")
-    draw.ellipse((x-6, y+2, x+6, y+11), fill="#ed8ba0")
-    draw.ellipse((x-65, y+35, x-25, y+75), fill="#eeeeee")
-    draw.ellipse((x+25, y+35, x+65, y+75), fill="#eeeeee")
+    # Body and head
+    d.ellipse((x-27,y-5,x+27,y+65), fill=c, outline="#444444", width=2)
+    d.ellipse((x-29,y-48,x+29,y+12), fill=c, outline="#444444", width=2)
 
-def draw_bird(draw, x, y, t):
-    flap = int(math.sin(t * 10) * 10)
-    draw.ellipse((x-35, y-25, x+35, y+25), fill="#ffcc33")
-    draw.ellipse((x+10, y-48, x+52, y-5), fill="#ffcc33")
-    draw.ellipse((x+30, y-35, x+38, y-27), fill="black")
-    draw.polygon([(x+50,y-25),(x+75,y-15),(x+50,y-8)], fill="#ff8844")
-    draw.ellipse((x-20, y-5-flap, x+12, y+15+flap), fill="#f5a623")
+    if kind == "bunny":
+        d.ellipse((x-22,y-95,x-5,y-38), fill=c, outline="#444444")
+        d.ellipse((x+5,y-95,x+22,y-38), fill=c, outline="#444444")
+        d.ellipse((x-15,y-88,x-9,y-45), fill="#f3a5b7")
+        d.ellipse((x+9,y-88,x+15,y-45), fill="#f3a5b7")
+        eye = "#111111"
+    elif kind == "mouse":
+        d.ellipse((x-48,y-60,x-12,y-25), fill="#d98eaa", outline="#444444")
+        d.ellipse((x+12,y-60,x+48,y-25), fill="#d98eaa", outline="#444444")
+        eye = "#111111"
+    elif kind == "parrot":
+        d.ellipse((x-20,y-65,x+28,y-20), fill="#35bd65")
+        d.polygon([(x+25,y-48),(x+49,y-38),(x+25,y-30)], fill="#ffae24")
+        d.polygon([(x-25,y+5),(x-52,y+25),(x-18,y+35)], fill="#168cba")
+        eye = "#111111"
+    elif kind == "cat":
+        d.polygon([(x-27,y-38),(x-25,y-72),(x-2,y-45)], fill=c, outline="#444444")
+        d.polygon([(x+2,y-45),(x+25,y-72),(x+27,y-38)], fill=c, outline="#444444")
+        eye = "#111111"
+    else:
+        d.ellipse((x-45,y-65,x-10,y-30), fill="#222222")
+        d.ellipse((x+10,y-65,x+45,y-30), fill="#222222")
+        d.ellipse((x-17,y-25,x-5,y-9), fill="#222222")
+        d.ellipse((x+5,y-25,x+17,y-9), fill="#222222")
+        eye = "#ffffff"
+
+    d.ellipse((x-14,y-28,x-7,y-20), fill=eye)
+    d.ellipse((x+7,y-28,x+14,y-20), fill=eye)
+    d.ellipse((x-5,y-14,x+5,y-7), fill="#ed8ba0")
+    d.line((x-5,y-2,x+5,y-2), fill="#444444", width=2)
+
+    # Feet
+    d.ellipse((x-32,y+52,x-5,y+68), fill=c, outline="#444444")
+    d.ellipse((x+5,y+52,x+32,y+68), fill=c, outline="#444444")
 
 def make_frame(i):
     t = i / FPS
-    img = Image.new("RGB", (W, H), "#87ceeb")
+    scene = min(int(t / (DURATION / 5)), 4)
+
+    backgrounds = ["#87ceeb", "#a8ddff", "#ffdc9c", "#a9e8c0", "#b9a9ee"]
+    img = Image.new("RGB", (W,H), backgrounds[scene])
     d = ImageDraw.Draw(img)
 
-    # Sky and clouds
-    d.ellipse((40, 90, 150, 200), fill="#fff3a6")
+    # Sun and clouds
+    d.ellipse((410,65,490,145), fill="#ffe66d")
+    for x,y in [(45,210),(300,170),(180,300)]:
+        d.ellipse((x,y,x+90,y+35), fill="white")
+        d.ellipse((x+20,y-18,x+70,y+35), fill="white")
 
-    for x, y in [(80,260),(360,180),(300,350)]:
-        d.ellipse((x,y,x+100,y+45), fill="white")
-        d.ellipse((x+25,y-20,x+85,y+45), fill="white")
+    # Hills and trees
+    d.ellipse((-100,490,330,900), fill="#72c875")
+    d.ellipse((200,510,650,920), fill="#3b9e60")
+    for x,y in [(45,560),(465,540),(390,650)]:
+        d.rectangle((x-8,y,x+8,y+120), fill="#80552e")
+        d.ellipse((x-42,y-65,x+42,y+25), fill="#238b45")
 
-    # Forest hills
-    d.ellipse((-150, 530, 350, 1000), fill="#63bd65")
-    d.ellipse((180, 520, 700, 1050), fill="#319b55")
+    d.rectangle((0,760,W,H), fill="#319b55")
 
-    # Trees
-    for x, y in [(60,560),(440,530),(420,700)]:
-        d.rectangle((x-9,y,x+9,y+120), fill="#80552e")
-        d.ellipse((x-55,y-75,x+55,y+35), fill="#238b45")
+    # Five friends
+    positions = [65,168,270,372,475]
+    kinds = ["bunny","mouse","parrot","cat","panda"]
 
-    # Ground
-    d.rectangle((0,800,W,H), fill="#319b55")
+    for j, (x,kind) in enumerate(zip(positions,kinds)):
+        animal(d, kind, x, 690 + (j % 2)*5, t + j)
 
-    # Animated scenes
-    scene = min(int(t / (DURATION / 5)), 4)
-    bunny_x = [620, 420, 250, 250, 320][scene]
-    bunny_y = [680, 680, 700, 680, 680][scene]
+    # Story title
+    title_text = wrap(title, title_font, 460)
+    d.rounded_rectangle((15,45,W-15,150), radius=22, fill="white")
+    tb = d.multiline_textbbox((0,0), title_text, font=title_font, spacing=5, align="center")
+    th = tb[3]-tb[1]
+    d.multiline_text((W/2,98-th/2), title_text, font=title_font, fill="#174b32", anchor="ma", align="center", spacing=5)
 
-    draw_bunny(d, bunny_x, bunny_y, t + scene)
-
-    bird_x = [620, 500, 350, 300, 390][scene] + int(math.sin(t*3)*35)
-    bird_y = [300, 380, 470, 590, 500][scene] + int(math.sin(t*4)*18)
-
-    if scene >= 2:
-        draw_bird(d, bird_x, bird_y, t)
-
-    # Dynamic captions
-    index = min(int(t / (DURATION / len(story))), len(story)-1)
-    caption = story[index]
-
-    # Title
-    d.rounded_rectangle((22, 90, W-22, 190), radius=24, fill="#ffffff")
-    box = d.textbbox((0,0), story_title, font=title_font)
-    tw = box[2] - box[0]
-    d.text(((W-tw)//2, 118), story_title, font=title_font, fill="#174b32")
-
-    # Caption box
-    d.rounded_rectangle((18, 825, W-18, 935), radius=25, fill="#ffffff")
-    box = d.textbbox((0,0), caption, font=font)
-    tw = box[2] - box[0]
-    d.text(((W-tw)//2, 865), caption, font=font, fill="#202020")
+    # Story captions
+    index = min(int(t / (DURATION / len(captions))), len(captions)-1)
+    caption = wrap(captions[index], font, 460)
+    d.rounded_rectangle((15,805,W-15,940), radius=22, fill="white")
+    d.multiline_text((W/2,872), caption, font=font, fill="#202020", anchor="mm", align="center", spacing=8)
 
     img.save(FRAMES / f"frame_{i:04d}.jpg", quality=88)
 
-print("Making cartoon frames...")
-
+print("Making five-character cartoon...")
 for i in range(TOTAL):
     make_frame(i)
 
@@ -141,25 +158,25 @@ audio = OUT / "final_audio.mp3"
 final = OUT / "short_final.mp4"
 
 subprocess.run([
-    "ffmpeg", "-y",
-    "-framerate", str(FPS),
-    "-i", str(FRAMES / "frame_%04d.jpg"),
-    "-vf", "scale=1080:1920",
-    "-c:v", "libx264",
-    "-pix_fmt", "yuv420p",
+    "ffmpeg","-y",
+    "-framerate",str(FPS),
+    "-i",str(FRAMES / "frame_%04d.jpg"),
+    "-vf","scale=1080:1920",
+    "-c:v","libx264",
+    "-pix_fmt","yuv420p",
     str(video)
 ], check=True)
 
 if audio.exists():
     subprocess.run([
-        "ffmpeg", "-y",
-        "-i", str(video),
-        "-i", str(audio),
-        "-map", "0:v", "-map", "1:a",
-        "-c:v", "copy", "-c:a", "aac",
-        "-shortest", str(final)
+        "ffmpeg","-y",
+        "-i",str(video),
+        "-i",str(audio),
+        "-map","0:v","-map","1:a",
+        "-c:v","copy","-c:a","aac",
+        "-shortest",str(final)
     ], check=True)
 else:
-    shutil.copy(video, final)
+    shutil.copy(video,final)
 
-print("SHORT READY:", final)
+print("SHORT READY:",final)
