@@ -33,8 +33,11 @@ jobs:
           python -c "import json; from pathlib import Path; d=json.loads(Path('output/kids/story.json').read_text(encoding='utf-8')); print(d['story'])" > output/kids/story.txt
           python scripts/voice.py "$(cat output/kids/story.txt)"
 
-      - name: Prepare audio
-        run: cp output/kids/voice.mp3 output/kids/final_audio.mp3
+      - name: Generate original background music
+        run: python scripts/generate_music.py
+
+      - name: Mix narration and background music
+        run: python scripts/mix_audio.py
 
       - name: Render cartoon
         run: |
