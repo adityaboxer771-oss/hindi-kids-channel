@@ -107,9 +107,36 @@ events = [
     }
 ]
 
-a, b = random.sample(characters, 2)
+HISTORY = OUT / "story_history.json"
+history = []
+if HISTORY.exists():
+    try:
+        history = json.loads(HISTORY.read_text(encoding="utf-8"))
+    except Exception:
+        history = []
+
+used_events = [x.get("event_index") for x in history[-10:]]
+available_events = [i for i in range(len(events)) if i not in used_events]
+if not available_events:
+    available_events = list(range(len(events)))
+event_index = random.choice(available_events)
+event = events[event_index]
+
+used_pairs = [x.get("character_pair") for x in history[-5:]]
+available_pairs = [
+    pair for pair in [
+        (i, j) for i in range(len(characters))
+        for j in range(i+1, len(characters))
+    ] if str(pair) not in used_pairs
+]
+if not available_pairs:
+    available_pairs = [
+        (i, j) for i in range(len(characters))
+        for j in range(i+1, len(characters))
+    ]
+pair = random.choice(available_pairs)
+a, b = characters[pair[0]], characters[pair[1]]
 place, bg = random.choice(places)
-event = random.choice(events)
 
 title = f"{a[0]} और {b[0]} की कहानी"
 
@@ -153,7 +180,7 @@ data = {
     "background": bg,
     "scenes": scenes,
     "story_structure": ["introduction", "problem", "teamwork", "resolution", "moral"],
-    "version": 6
+    "version": 9
 }
 
 (OUT / "story.json").write_text(
@@ -161,6 +188,16 @@ data = {
     encoding="utf-8"
 )
 
-print("STAGE 6 STORY GENERATED")
+entry = {
+    "title": title,
+    "event_index": event_index,
+    "character_pair": str(pair),
+    "background": bg
+}
+history.append(entry)
+HISTORY.write_text(json.dumps(history[-30:], ensure_ascii=False, indent=2), encoding="utf-8")
+
+print("STAGE 9 STORY GENERATED")
+print("History saved:", len(history[-30:]))
 print(title)
 print(story)
