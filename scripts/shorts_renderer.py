@@ -251,6 +251,28 @@ def background(d, kind, t):
         ellipse(d,(px-4,py-4,px+4,py+4),
                "#fff3a5" if k%2 else "#ffffff",width=0)
 
+def draw_action_effect(d, visual, t, x, y):
+    phase = abs(math.sin(t*4))
+    if visual in ("notice", "find", "search"):
+        r = 22 + int(phase*8)
+        d.ellipse((x-r,y-r,x+r,y+r),outline="#f4b942",width=5)
+        d.ellipse((x-5,y-5,x+5,y+5),fill="#f4b942")
+    elif visual in ("help", "teamwork"):
+        r = 16 + int(phase*5)
+        d.ellipse((x-r,y-r,x+r,y+r),fill="#ffcf70")
+    elif visual in ("celebrate", "finish", "bloom"):
+        for a in range(0,360,60):
+            rad = math.radians(a+t*20)
+            sx = x + int(math.cos(rad)*35)
+            sy = y + int(math.sin(rad)*35)
+            d.ellipse((sx-7,sy-7,sx+7,sy+7),fill="#ffd95c")
+    elif visual in ("worry", "problem"):
+        d.ellipse((x-18,y-18,x+18,y+18),fill="#b7d9ff")
+    elif visual in ("play", "picnic"):
+        r = 15 + int(phase*7)
+        d.ellipse((x-r,y-r,x+r,y+r),fill="#a7e8a1")
+
+
 def make_scene_frame(i, si):
     t = i/FPS
     si = max(0,min(si,scene_count-1))
@@ -272,7 +294,13 @@ def make_scene_frame(i, si):
     for j,ch in enumerate(chars[:2]):
         kind = ch.get("animal","bunny")
         x = max(70,min(W-70,positions[j]))
-        draw_animal(d,kind,x,700+j*8,t+j,visual)
+        y = 700 + int(math.sin(t*3+j)*12)
+
+        draw_animal(d,kind,x,y,t+j,visual)
+
+        if visual in ("notice","find","search","help","celebrate",
+                      "finish","play","bloom","picnic","worry"):
+            draw_action_effect(d,visual,t,x,y-180)
 
     title_text = wrap(title,title_font,460)
     d.rounded_rectangle((15,40,W-15,150),radius=22,fill="white")
@@ -288,7 +316,6 @@ def make_scene_frame(i, si):
     d.text((270,185),f"Scene {si+1}/{scene_count}",
            fill="#174b32",font=small,anchor="mm")
 
-    # Dynamic camera zoom and pan
     zoom = 1.0 + 0.035*math.sin(t*1.6+si)
     nw, nh = int(W*zoom), int(H*zoom)
     img = img.resize((nw,nh),Image.Resampling.LANCZOS)
@@ -298,7 +325,6 @@ def make_scene_frame(i, si):
     left = max(0,min(nw-W,(nw-W)//2+pan_x))
     top = max(0,min(nh-H,(nh-H)//2+pan_y))
     img = img.crop((left,top,left+W,top+H))
-
     return img
 
 def make_frame(i):
