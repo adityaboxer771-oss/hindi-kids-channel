@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "output/kids"
 FRAMES = OUT / "short_frames"
 W, H, FPS = 540, 960, 15
-TRANSITION = 0.4
+TRANSITION = 0.55
 
 OUT.mkdir(parents=True, exist_ok=True)
 if FRAMES.exists():
