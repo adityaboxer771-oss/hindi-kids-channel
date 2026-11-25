@@ -2,24 +2,43 @@ name: Daily Hindi Kids Cartoon
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Install tools and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-extra
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          pip install edge-tts pillow moviepy
+      - name: Install Python packages
+        run: pip install pillow edge-tts
 
-      - name: Show project files
+      - name: Generate Hindi voice
         run: |
-          ls -la
-          ls -la scripts
+          python scripts/voice.py "एक समय की बात है। सुंदर जंगल में चिंटू नाम का एक प्यारा खरगोश रहता था। उसे नए दोस्त बनाना पसंद था। एक दिन उसे छोटा पंछी मिला जो रास्ता भटक गया था। चिंटू ने उसकी मदद की और दोनों अच्छे दोस्त बन गए।"
+
+      - name: Prepare audio
+        run: cp output/kids/voice.mp3 output/kids/final_audio.mp3
+
+      - name: Render cartoon
+        run: |
+          sed -i 's|"/system/fonts/NotoSansDevanagari-VF.ttf",|"/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",|' scripts/shorts_renderer.py
+          python scripts/shorts_renderer.py
+
+      - name: Save generated video
+        uses: actions/upload-artifact@v4
+        with:
+          name: hindi-kids-cartoon
+          path: output/kids/short_final.mp4
+          if-no-files-found: error
