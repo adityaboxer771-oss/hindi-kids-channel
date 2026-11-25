@@ -5,17 +5,14 @@ import math, subprocess, shutil, json
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "output/kids"
 FRAMES = OUT / "short_frames"
-
-W, H = 540, 960
-FPS = 15
-DURATION = 22
+W, H, FPS, DURATION = 540, 960, 15, 22
 TOTAL = FPS * DURATION
 
 OUT.mkdir(parents=True, exist_ok=True)
 FRAMES.mkdir(parents=True, exist_ok=True)
 
 data = json.loads((OUT / "story.json").read_text(encoding="utf-8")) if (OUT / "story.json").exists() else {}
-story_text = data.get("story", "एक समय की बात है। सभी दोस्त मिलकर खुश रहते थे।")
+story = data.get("story", "एक समय की बात है। सभी दोस्त मिलकर खुश रहते थे।")
 title = data.get("title", "प्यारी कहानी")
 
 font_paths = [
@@ -30,11 +27,11 @@ if not font_path:
 font = ImageFont.truetype(font_path, 25)
 title_font = ImageFont.truetype(font_path, 30)
 
-def wrap(text, f, max_width):
+def wrap(text, f, width):
     lines, line = [], ""
     for word in text.split():
         test = (line + " " + word).strip()
-        if f.getlength(test) <= max_width:
+        if f.getlength(test) <= width:
             line = test
         else:
             if line:
@@ -44,7 +41,7 @@ def wrap(text, f, max_width):
         lines.append(line)
     return "\n".join(lines)
 
-sentences = [s.strip() for s in story_text.replace("\n", " ").split("।") if s.strip()]
+sentences = [s.strip() for s in story.replace("\n", " ").split("।") if s.strip()]
 captions = []
 for sentence in sentences:
     words = sentence.split()
@@ -53,129 +50,160 @@ for sentence in sentences:
 if not captions:
     captions = ["एक प्यारी कहानी"]
 
-def animal(d, kind, x, y, t):
-    bounce = int(math.sin(t * 5) * 7)
+animals = ["bunny", "mouse", "parrot", "cat", "panda"]
+colors = {
+    "bunny": "#eeeeee", "mouse": "#b9a0a0",
+    "parrot": "#35bd65", "cat": "#f4a45c",
+    "panda": "#eeeeee"
+}
+
+def animal(d, kind, x, y, t, scale=1):
+    bounce = math.sin(t*4.5)*10
     y += bounce
-    colors = {
-        "bunny": "#eeeeee",
-        "mouse": "#b9a0a0",
-        "parrot": "#35bd65",
-        "cat": "#f4a45c",
-        "panda": "#eeeeee"
-    }
     c = colors[kind]
 
-    # Body and head
-    d.ellipse((x-27,y-5,x+27,y+65), fill=c, outline="#444444", width=2)
-    d.ellipse((x-29,y-48,x+29,y+12), fill=c, outline="#444444", width=2)
+    def box(a,b,e,f):
+        return (int(x+a*scale), int(y+b*scale),
+                int(x+e*scale), int(y+f*scale))
+
+    def ellipse(a,b,e,f,fill,outline="#444444",width=2):
+        d.ellipse(box(a,b,e,f),fill=fill,outline=outline,width=max(1,int(width*scale)))
+
+    # Body
+    ellipse(-25, -5, 25, 65, c)
+    ellipse(-30, -52, 30, 10, c)
 
     if kind == "bunny":
-        d.ellipse((x-22,y-95,x-5,y-38), fill=c, outline="#444444")
-        d.ellipse((x+5,y-95,x+22,y-38), fill=c, outline="#444444")
-        d.ellipse((x-15,y-88,x-9,y-45), fill="#f3a5b7")
-        d.ellipse((x+9,y-88,x+15,y-45), fill="#f3a5b7")
-        eye = "#111111"
+        ellipse(-22,-105,-5,-40,c)
+        ellipse(5,-105,22,-40,c)
+        ellipse(-15,-98,-9,-47,"#f3a5b7",None)
+        ellipse(9,-98,15,-47,"#f3a5b7",None)
     elif kind == "mouse":
-        d.ellipse((x-48,y-60,x-12,y-25), fill="#d98eaa", outline="#444444")
-        d.ellipse((x+12,y-60,x+48,y-25), fill="#d98eaa", outline="#444444")
-        eye = "#111111"
+        ellipse(-48,-65,-12,-28,"#d98eaa")
+        ellipse(12,-65,48,-28,"#d98eaa")
     elif kind == "parrot":
-        d.ellipse((x-20,y-65,x+28,y-20), fill="#35bd65")
-        d.polygon([(x+25,y-48),(x+49,y-38),(x+25,y-30)], fill="#ffae24")
-        d.polygon([(x-25,y+5),(x-52,y+25),(x-18,y+35)], fill="#168cba")
-        eye = "#111111"
+        ellipse(-20,-65,28,-20,c)
+        d.polygon([(x+25*scale,y-48*scale),
+                   (x+49*scale,y-38*scale),
+                   (x+25*scale,y-30*scale)],fill="#ffae24")
+        d.polygon([(x-25*scale,y+5*scale),
+                   (x-52*scale,y+25*scale),
+                   (x-18*scale,y+35*scale)],fill="#168cba")
     elif kind == "cat":
-        d.polygon([(x-27,y-38),(x-25,y-72),(x-2,y-45)], fill=c, outline="#444444")
-        d.polygon([(x+2,y-45),(x+25,y-72),(x+27,y-38)], fill=c, outline="#444444")
-        eye = "#111111"
+        d.polygon([(x-27*scale,y-38*scale),
+                   (x-25*scale,y-72*scale),
+                   (x-2*scale,y-45*scale)],fill=c,outline="#444444")
+        d.polygon([(x+2*scale,y-45*scale),
+                   (x+25*scale,y-72*scale),
+                   (x+27*scale,y-38*scale)],fill=c,outline="#444444")
     else:
-        d.ellipse((x-45,y-65,x-10,y-30), fill="#222222")
-        d.ellipse((x+10,y-65,x+45,y-30), fill="#222222")
-        d.ellipse((x-17,y-25,x-5,y-9), fill="#222222")
-        d.ellipse((x+5,y-25,x+17,y-9), fill="#222222")
-        eye = "#ffffff"
+        ellipse(-45,-65,-10,-30,"#222222")
+        ellipse(10,-65,45,-30,"#222222")
+        ellipse(-17,-25,-5,-9,"#222222")
+        ellipse(5,-25,17,-9,"#222222")
 
-    d.ellipse((x-14,y-28,x-7,y-20), fill=eye)
-    d.ellipse((x+7,y-28,x+14,y-20), fill=eye)
-    d.ellipse((x-5,y-14,x+5,y-7), fill="#ed8ba0")
-    d.line((x-5,y-2,x+5,y-2), fill="#444444", width=2)
+    eye = "#ffffff" if kind == "panda" else "#111111"
+    ellipse(-14,-29,-7,-20,eye,None)
+    ellipse(7,-29,14,-20,eye,None)
+    ellipse(-5,-14,5,-7,"#ed8ba0",None)
+    d.line(box(-5,-2,5,-2),fill="#444444",width=2)
 
     # Feet
-    d.ellipse((x-32,y+52,x-5,y+68), fill=c, outline="#444444")
-    d.ellipse((x+5,y+52,x+32,y+68), fill=c, outline="#444444")
+    ellipse(-32,52,-5,68,c)
+    ellipse(5,52,32,68,c)
+
+def background(d, scene, t):
+    skies = ["#87ceeb", "#a8ddff", "#ffdc9c", "#a9e8c0", "#b9a9ee"]
+    greens = ["#72c875", "#58bd72", "#63b36a", "#69c987", "#83bb80"]
+    d.rectangle((0,0,W,H),fill=skies[scene])
+
+    # Sun
+    sunx = 420 + int(math.sin(t*.3)*12)
+    d.ellipse((sunx-35,65,sunx+35,135),fill="#ffe66d")
+
+    # Clouds
+    for x,y in [(40,200),(300,160),(180,300)]:
+        shift = int(math.sin(t*.4+x)*12)
+        d.ellipse((x+shift,y,x+shift+90,y+35),fill="white")
+        d.ellipse((x+shift+20,y-18,x+shift+70,y+35),fill="white")
+
+    # Hills
+    d.ellipse((-100,490,330,900),fill=greens[scene])
+    d.ellipse((200,510,650,920),fill="#399b58")
+
+    # Trees
+    for x,y in [(45,560),(465,540),(390,650)]:
+        d.rectangle((x-8,y,x+8,y+120),fill="#80552e")
+        d.ellipse((x-42,y-65,x+42,y+25),fill="#238b45")
+
+    d.rectangle((0,760,W,H),fill="#319b55")
 
 def make_frame(i):
-    t = i / FPS
-    scene = min(int(t / (DURATION / 5)), 4)
-
-    backgrounds = ["#87ceeb", "#a8ddff", "#ffdc9c", "#a9e8c0", "#b9a9ee"]
-    img = Image.new("RGB", (W,H), backgrounds[scene])
+    t = i/FPS
+    scene = min(int(t/(DURATION/5)),4)
+    img = Image.new("RGB",(W,H))
     d = ImageDraw.Draw(img)
 
-    # Sun and clouds
-    d.ellipse((410,65,490,145), fill="#ffe66d")
-    for x,y in [(45,210),(300,170),(180,300)]:
-        d.ellipse((x,y,x+90,y+35), fill="white")
-        d.ellipse((x+20,y-18,x+70,y+35), fill="white")
+    background(d,scene,t)
 
-    # Hills and trees
-    d.ellipse((-100,490,330,900), fill="#72c875")
-    d.ellipse((200,510,650,920), fill="#3b9e60")
-    for x,y in [(45,560),(465,540),(390,650)]:
-        d.rectangle((x-8,y,x+8,y+120), fill="#80552e")
-        d.ellipse((x-42,y-65,x+42,y+25), fill="#238b45")
+    # Scene movement
+    center = 270 + math.sin(t*1.4)*45
+    positions = [
+        center-190+math.sin(t*2)*15,
+        center-95+math.sin(t*2.3+1)*18,
+        center+math.sin(t*2.8+2)*35,
+        center+95+math.sin(t*2.1+3)*15,
+        center+190+math.sin(t*2.5+4)*18
+    ]
 
-    d.rectangle((0,760,W,H), fill="#319b55")
-
-    # Five friends
-    positions = [65,168,270,372,475]
-    kinds = ["bunny","mouse","parrot","cat","panda"]
-
-    for j, (x,kind) in enumerate(zip(positions,kinds)):
-        animal(d, kind, x, 690 + (j % 2)*5, t + j)
+    # Characters enter / move according to scene
+    for j,kind in enumerate(animals):
+        x = positions[j]
+        x = max(55,min(W-55,x))
+        animal(d,kind,x,690+(j%2)*5,t+j)
 
     # Story title
-    title_text = wrap(title, title_font, 460)
-    d.rounded_rectangle((15,45,W-15,150), radius=22, fill="white")
-    tb = d.multiline_textbbox((0,0), title_text, font=title_font, spacing=5, align="center")
-    th = tb[3]-tb[1]
-    d.multiline_text((W/2,98-th/2), title_text, font=title_font, fill="#174b32", anchor="ma", align="center", spacing=5)
+    title_text = wrap(title,title_font,460)
+    d.rounded_rectangle((15,45,W-15,150),radius=22,fill="white")
+    d.multiline_text((W/2,98),title_text,font=title_font,
+                     fill="#174b32",anchor="mm",align="center",spacing=5)
 
-    # Story captions
-    index = min(int(t / (DURATION / len(captions))), len(captions)-1)
-    caption = wrap(captions[index], font, 460)
-    d.rounded_rectangle((15,805,W-15,940), radius=22, fill="white")
-    d.multiline_text((W/2,872), caption, font=font, fill="#202020", anchor="mm", align="center", spacing=8)
+    # Captions
+    index = min(int(t/(DURATION/len(captions))),len(captions)-1)
+    caption = wrap(captions[index],font,460)
+    d.rounded_rectangle((15,805,W-15,940),radius=22,fill="white")
+    d.multiline_text((W/2,872),caption,font=font,
+                     fill="#202020",anchor="mm",align="center",spacing=8)
 
-    img.save(FRAMES / f"frame_{i:04d}.jpg", quality=88)
+    # Scene indicator
+    d.rounded_rectangle((215,165,325,205),radius=15,fill="white")
+    d.text((270,185),f"Scene {scene+1}",fill="#174b32",anchor="mm")
 
-print("Making five-character cartoon...")
+    img.save(FRAMES/f"frame_{i:04d}.jpg",quality=88)
+
+print("Creating animated cartoon scenes...")
 for i in range(TOTAL):
     make_frame(i)
 
-video = OUT / "short_video.mp4"
-audio = OUT / "final_audio.mp3"
-final = OUT / "short_final.mp4"
+video = OUT/"short_video.mp4"
+audio = OUT/"final_audio.mp3"
+final = OUT/"short_final.mp4"
 
 subprocess.run([
-    "ffmpeg","-y",
-    "-framerate",str(FPS),
-    "-i",str(FRAMES / "frame_%04d.jpg"),
+    "ffmpeg","-y","-framerate",str(FPS),
+    "-i",str(FRAMES/"frame_%04d.jpg"),
     "-vf","scale=1080:1920",
-    "-c:v","libx264",
-    "-pix_fmt","yuv420p",
+    "-c:v","libx264","-pix_fmt","yuv420p",
     str(video)
-], check=True)
+],check=True)
 
 if audio.exists():
     subprocess.run([
-        "ffmpeg","-y",
-        "-i",str(video),
-        "-i",str(audio),
+        "ffmpeg","-y","-i",str(video),"-i",str(audio),
         "-map","0:v","-map","1:a",
-        "-c:v","copy","-c:a","aac",
-        "-shortest",str(final)
-    ], check=True)
+        "-c:v","copy","-c:a","aac","-shortest",
+        str(final)
+    ],check=True)
 else:
     shutil.copy(video,final)
 
