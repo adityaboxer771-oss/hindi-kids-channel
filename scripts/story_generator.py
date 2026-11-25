@@ -138,26 +138,32 @@ pair = random.choice(available_pairs)
 a, b = characters[pair[0]], characters[pair[1]]
 place, bg = random.choice(places)
 
-title = f"{a[0]} और {b[0]} की कहानी"
+title_options = [
+    f"{a[0]} और {b[0]} की दोस्ती",
+    f"{a[0]} तथा {b[0]} का मजेदार दिन",
+    f"{a[0]} और {b[0]} की नई सीख",
+    f"{a[0]} और {b[0]} का छोटा सा रोमांच"
+]
+title = random.choice(title_options)
 
 scenes = [
     {
-        "text": f"एक समय की बात है। {place} में {a[0]} रहता था। वह बहुत {a[1]} था। उसका दोस्त {b[0]} भी बहुत {b[1]} था।",
+        "text": random.choice([f"सुबह का समय था। {place} में {a[0]} और उसके दोस्त {b[0]} साथ घूम रहे थे। दोनों {a[1]} और {b[1]} स्वभाव के थे।", f"{place} में {a[0]} और {b[0]} अच्छे दोस्त रहते थे। आज दोनों कुछ नया करने निकले थे।", f"एक प्यारी सी सुबह {a[0]} और {b[0]} {place} में मिले। दोनों साथ समय बिताना पसंद करते थे।"]),
         "visual": event["visual"][0],
         "beat": "introduction"
     },
     {
-        "text": f"एक दिन {place} में {event['problem']}।",
+        "text": random.choice([f"लेकिन तभी {event['problem']}।", f"घूमते-घूमते उन्हें एक नई परेशानी दिखी—{event['problem']}।", f"उनका दिन अचानक बदल गया, क्योंकि {event['problem']}।"]),
         "visual": event["visual"][1],
         "beat": "problem"
     },
     {
-        "text": f"{a[0]} ने {b[0]} को बुलाया। दोनों ने मिलकर काम करने का फैसला किया। {event['action']}।",
+        "text": random.choice([f"{a[0]} ने {b[0]} से कहा कि वे मिलकर कोशिश करें। {event['action']}।", f"दोनों दोस्तों ने एक-दूसरे की बात सुनी और साथ काम करने लगे। {event['action']}।", f"{a[0]} और {b[0]} ने हिम्मत नहीं हारी। {event['action']}।"]),
         "visual": event["visual"][2],
         "beat": "teamwork"
     },
     {
-        "text": f"{event['dialogue']} {event['ending']}। दोनों दोस्तों ने खुशी-खुशी दिन बिताया।",
+        "text": f"{event['dialogue']} {event['ending']}। दोनों दोस्तों को अपनी कोशिश पर खुशी हुई।",
         "visual": event["visual"][3],
         "beat": "resolution"
     },
@@ -180,7 +186,7 @@ data = {
     "background": bg,
     "scenes": scenes,
     "story_structure": ["introduction", "problem", "teamwork", "resolution", "moral"],
-    "version": 9
+    "version": 10
 }
 
 (OUT / "story.json").write_text(
