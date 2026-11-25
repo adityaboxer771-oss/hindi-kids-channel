@@ -1,4 +1,3 @@
-
 name: Daily Hindi Kids Cartoon
 
 on:
@@ -42,9 +41,15 @@ jobs:
           sed -i 's|"/system/fonts/NotoSansDevanagari-VF.ttf",|"/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",|' scripts/shorts_renderer.py
           python scripts/shorts_renderer.py
 
-      - name: Save generated video
+      - name: Generate thumbnail
+        run: python scripts/thumbnail.py
+
+      - name: Save generated files
         uses: actions/upload-artifact@v4
         with:
           name: hindi-kids-cartoon
-          path: output/kids/short_final.mp4
+          path: |
+            output/kids/short_final.mp4
+            output/kids/thumbnail.png
+            output/kids/story.json
           if-no-files-found: error
