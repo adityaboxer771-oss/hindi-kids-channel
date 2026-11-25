@@ -291,9 +291,20 @@ def make_scene_frame(i, si):
         center += math.sin(t*4)*38
 
     positions = [center-100,center+100]
+    action_offsets = {
+        "walk": -45, "move": 45, "return": 70,
+        "search": -35, "find": 35, "help": 0,
+        "celebrate": 0, "finish": 0, "play": 0,
+        "picnic": 0, "bloom": 0, "notice": 0,
+        "worry": 0, "think": 0, "plan": 0
+    }
+    offset = action_offsets.get(visual, 0)
+    movement = math.sin(t*3)*18 if visual in ("walk","move","return","search") else 0
+
     for j,ch in enumerate(chars[:2]):
         kind = ch.get("animal","bunny")
-        x = max(70,min(W-70,positions[j]))
+        direction = -1 if j == 0 else 1
+        x = max(70,min(W-70,positions[j] + direction*offset + movement*direction))
         y = 700 + int(math.sin(t*3+j)*12)
 
         draw_animal(d,kind,x,y,t+j,visual)
