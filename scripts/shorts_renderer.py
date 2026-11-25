@@ -207,12 +207,17 @@ def draw_animal(d, kind, x, y, t, action, scale=1):
         d.line((x+7*s,y-47*s,x+18*s,y-43*s),fill="#4a4038",width=2)
 
     ellipse(d,(x-5*s,y-13*s,x+5*s,y-7*s),"#ec8c9f",width=0)
-    talking = int(t*7) % 3 != 0
+    talk_cycle = math.sin(t*12)
+    talking = talk_cycle > -0.15
+    mouth_open = abs(talk_cycle)
+
 
     if happy:
         d.arc((x-15*s,y-10*s,x+15*s,y+15*s),0,180,fill="#444",width=3)
     elif talking:
-        ellipse(d,(x-6*s,y-5*s,x+6*s,y+9*s),"#873e48",width=0)
+        mouth_h = max(3, int((4 + mouth_open*9)*s))
+        ellipse(d,(x-7*s,y-4*s,x+7*s,y-4*s+mouth_h),
+                "#873e48",width=0)
     else:
         d.line((x-6*s,y+2*s,x+6*s,y+2*s),fill="#444",width=2)
 
