@@ -5,7 +5,20 @@ import math, subprocess, shutil, json
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "output/kids"
 FRAMES = OUT / "short_frames"
-W, H, FPS, DURATION = 540, 960, 15, 22
+W, H, FPS = 540, 960, 15
+audio_probe = OUT / "final_audio.mp3"
+DURATION = 22
+if audio_probe.exists():
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries",
+             "format=duration", "-of", "default=noprint_wrappers=1:nokey=1",
+             str(audio_probe)], capture_output=True, text=True, check=True
+        )
+        DURATION = max(10, int(float(probe.stdout.strip()) + 1))
+    except Exception:
+        DURATION = 22
+TOTAL = FPS * DURATION
 TOTAL = FPS * DURATION
 
 OUT.mkdir(parents=True, exist_ok=True)
