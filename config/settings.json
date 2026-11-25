@@ -1,0 +1,22 @@
+{
+  "project_name": "Kids Gaming Media Automation",
+  "video": {
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "format": "mp4"
+  },
+  "content_categories": [
+    "kids",
+    "gaming"
+  ],
+  "sources": {
+    "licensed_clips": true,
+    "own_gameplay": true,
+    "public_domain": true
+  },
+  "youtube": {
+    "upload_enabled": false,
+    "privacy": "private"
+  }
+}

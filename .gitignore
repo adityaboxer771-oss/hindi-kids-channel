@@ -1,0 +1,14 @@
+output/
+clips/
+downloads/
+sources/
+__pycache__/
+*.pyc
+*.mp3
+*.mp4
+*.wav
+*.jpg
+*.png
+.env
+token.json
+client_secret*.json

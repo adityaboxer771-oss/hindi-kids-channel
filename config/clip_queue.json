@@ -1,0 +1,11 @@
+{
+  "clips": [],
+  "categories": ["kids", "gaming"],
+  "required_permission": true,
+  "allowed_sources": [
+    "creator_permission",
+    "licensed",
+    "public_domain",
+    "own_content"
+  ]
+}
