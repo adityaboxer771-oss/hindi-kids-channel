@@ -245,7 +245,29 @@ def background(d, kind, t):
         "hills": ("#b9a9ee","#83bb80")
     }
     sky, green = palettes.get(kind, palettes["forest"])
+
     d.rectangle((0,0,W,H),fill=sky)
+
+    # distant layered hills
+    for k in range(3):
+        hy = 390 + k*55
+        d.ellipse((-120+k*80,hy,W+120-k*60,hy+230),
+                  fill=green)
+
+    # foreground bushes
+    for bx in range(-40,W+100,150):
+        by = 650 + int(math.sin(t*0.5+bx)*8)
+        ellipse(d,(bx,by,bx+180,by+120),
+                "#438b52",width=0)
+
+    # decorative trees
+    for tx,ty in [(100,480),(W-130,450),(340,520)]:
+        d.rectangle((tx-12,ty,tx+12,ty+120),
+                   fill="#795438")
+        for rr in [(tx-65,ty-80,tx+65,ty+45),
+                   (tx-45,ty-125,tx+45,ty-35)]:
+            ellipse(d,rr,"#34864c",width=0)
+
 
     sx = 420 + int(math.sin(t*.3)*18)
     ellipse(d,(sx-40,65,sx+40,145),"#ffe66d",width=0)
