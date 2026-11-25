@@ -1,3 +1,4 @@
+
 name: Daily Hindi Kids Cartoon
 
 on:
@@ -8,6 +9,7 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -24,9 +26,13 @@ jobs:
       - name: Install Python packages
         run: pip install pillow edge-tts
 
+      - name: Generate new Hindi story
+        run: python scripts/story_generator.py
+
       - name: Generate Hindi voice
         run: |
-          python scripts/voice.py "एक समय की बात है। सुंदर जंगल में चिंटू नाम का एक प्यारा खरगोश रहता था। उसे नए दोस्त बनाना पसंद था। एक दिन उसे छोटा पंछी मिला जो रास्ता भटक गया था। चिंटू ने उसकी मदद की और दोनों अच्छे दोस्त बन गए।"
+          python -c "import json; from pathlib import Path; d=json.loads(Path('output/kids/story.json').read_text(encoding='utf-8')); print(d['story'])" > output/kids/story.txt
+          python scripts/voice.py "$(cat output/kids/story.txt)"
 
       - name: Prepare audio
         run: cp output/kids/voice.mp3 output/kids/final_audio.mp3
