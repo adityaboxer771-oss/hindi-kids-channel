@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
-import math, subprocess, shutil, json
+import math, subprocess, shutil, json, random
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "output/kids"
@@ -17,6 +17,7 @@ scenes = data.get("scenes", [])
 title = data.get("title", "प्यारी कहानी")
 chars = data.get("characters", [])
 story = data.get("story", "")
+bg_kind = data.get("background", "forest")
 
 font_paths = [
     "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
@@ -28,7 +29,7 @@ if not fp:
     raise SystemExit("Hindi font nahi mila")
 
 font = ImageFont.truetype(fp, 25)
-small = ImageFont.truetype(fp, 21)
+small = ImageFont.truetype(fp, 19)
 title_font = ImageFont.truetype(fp, 30)
 
 audio = OUT / "final_audio.mp3"
@@ -51,7 +52,7 @@ scene_seconds = duration / scene_count
 
 def wrap(txt, f, width):
     lines, line = [], ""
-    for word in txt.split():
+    for word in str(txt).split():
         test = (line + " " + word).strip()
         if f.getlength(test) <= width:
             line = test
@@ -63,63 +64,88 @@ def wrap(txt, f, width):
         lines.append(line)
     return "\n".join(lines)
 
-animal_colors = {
-    "bunny": "#eeeeee", "mouse": "#c9a3a3",
-    "panda": "#eeeeee", "parrot": "#40bb62",
-    "cat": "#f4a45c", "squirrel": "#bc7848",
-    "turtle": "#83b56b"
+colors = {
+    "bunny": "#f1eeee", "mouse": "#d5a6ad",
+    "panda": "#eeeeee", "parrot": "#48bd64",
+    "cat": "#f5a35c", "squirrel": "#bd7849",
+    "turtle": "#8bc26c"
 }
 
-def draw_animal(d, kind, x, y, t, action, scale=1):
-    c = animal_colors.get(kind, "#e8c18c")
-    jump = abs(math.sin(t * 4)) * 14 if action in ("play", "celebrate", "bloom") else math.sin(t * 2) * 5
-    y -= jump
+def ellipse(d, box, fill, outline="#4a4038", width=2):
+    d.ellipse(tuple(int(v) for v in box),
+              fill=fill, outline=outline, width=width)
 
-    def el(box, fill, outline="#444444"):
-        d.ellipse(tuple(int(v) for v in box), fill=fill, outline=outline, width=2)
+def draw_animal(d, kind, x, y, t, action, scale=1):
+    c = colors.get(kind, "#e8c18c")
+    bounce = abs(math.sin(t * 4)) * 18 if action in (
+        "play", "celebrate", "bloom", "help"
+    ) else math.sin(t * 2) * 7
+    y -= bounce
+    s = scale
+
+    # Tail
+    if kind in ("cat", "squirrel"):
+        d.arc((x+20*s, y+15*s, x+75*s, y+100*s),
+              180, 320, fill=c, width=max(3,int(9*s)))
+    if kind == "turtle":
+        ellipse(d,(x-40*s,y+5*s,x+40*s,y+55*s),"#598d49")
 
     # Body and head
-    el((x-28*scale,y-5*scale,x+28*scale,y+60*scale), c)
-    el((x-32*scale,y-60*scale,x+32*scale,y+8*scale), c)
+    ellipse(d,(x-28*s,y-5*s,x+28*s,y+60*s),c)
+    ellipse(d,(x-36*s,y-65*s,x+36*s,y+10*s),c)
 
     if kind == "bunny":
-        el((x-22*scale,y-115*scale,x-5*scale,y-45*scale),c)
-        el((x+5*scale,y-115*scale,x+22*scale,y-45*scale),c)
-        el((x-17*scale,y-100*scale,x-10*scale,y-52*scale),"#f3a5b7")
-        el((x+10*scale,y-100*scale,x+17*scale,y-52*scale),"#f3a5b7")
+        ellipse(d,(x-23*s,y-120*s,x-5*s,y-45*s),c)
+        ellipse(d,(x+5*s,y-120*s,x+23*s,y-45*s),c)
+        ellipse(d,(x-17*s,y-105*s,x-10*s,y-55*s),"#eaa1b2")
+        ellipse(d,(x+10*s,y-105*s,x+17*s,y-55*s),"#eaa1b2")
     elif kind == "mouse":
-        el((x-48*scale,y-65*scale,x-12*scale,y-28*scale),"#d98eaa")
-        el((x+12*scale,y-65*scale,x+48*scale,y-28*scale),"#d98eaa")
+        ellipse(d,(x-50*s,y-70*s,x-12*s,y-30*s),"#dc91a6")
+        ellipse(d,(x+12*s,y-70*s,x+50*s,y-30*s),"#dc91a6")
     elif kind == "cat":
-        d.polygon([(x-28*scale,y-38*scale),(x-25*scale,y-75*scale),(x-3*scale,y-45*scale)],fill=c,outline="#444444")
-        d.polygon([(x+28*scale,y-38*scale),(x+25*scale,y-75*scale),(x+3*scale,y-45*scale)],fill=c,outline="#444444")
+        d.polygon([(x-30*s,y-40*s),(x-30*s,y-78*s),
+                   (x-5*s,y-45*s)],fill=c,outline="#4a4038")
+        d.polygon([(x+30*s,y-40*s),(x+30*s,y-78*s),
+                   (x+5*s,y-45*s)],fill=c,outline="#4a4038")
     elif kind == "parrot":
-        d.polygon([(x+22*scale,y-45*scale),(x+48*scale,y-35*scale),(x+22*scale,y-25*scale)],fill="#ffae24")
-        d.polygon([(x-20*scale,y+10*scale),(x-48*scale,y+25*scale),(x-18*scale,y+35*scale)],fill="#168cba")
+        d.polygon([(x+20*s,y-45*s),(x+48*s,y-35*s),
+                   (x+20*s,y-25*s)],fill="#ffb62d")
+        d.polygon([(x-18*s,y+10*s),(x-45*s,y+38*s),
+                   (x-12*s,y+30*s)],fill="#2988b7")
     elif kind == "panda":
-        el((x-43*scale,y-65*scale,x-10*scale,y-28*scale),"#222222")
-        el((x+10*scale,y-65*scale,x+43*scale,y-28*scale),"#222222")
-        el((x-18*scale,y-25*scale,x-5*scale,y-9*scale),"#222222")
-        el((x+5*scale,y-25*scale,x+18*scale,y-9*scale),"#222222")
+        ellipse(d,(x-43*s,y-65*s,x-10*s,y-28*s),"#222222")
+        ellipse(d,(x+10*s,y-65*s,x+43*s,y-28*s),"#222222")
     elif kind == "squirrel":
-        el((x+20*scale,y-65*scale,x+50*scale,y-25*scale),"#bc7848")
+        ellipse(d,(x+22*s,y-72*s,x+48*s,y-35*s),c)
+        ellipse(d,(x-48*s,y-72*s,x-22*s,y-35*s),c)
     elif kind == "turtle":
-        el((x-35*scale,y-5*scale,x+35*scale,y+45*scale),"#588c48")
+        ellipse(d,(x-35*s,y-5*s,x+35*s,y+45*s),"#578b46")
 
-    # Face
-    el((x-14*scale,y-30*scale,x-7*scale,y-20*scale),"#222222")
-    el((x+7*scale,y-30*scale,x+14*scale,y-20*scale),"#222222")
-    el((x-5*scale,y-14*scale,x+5*scale,y-7*scale),"#ed8ba0")
-    d.arc((x-10*scale,y-8*scale,x+10*scale,y+5*scale),0,180,fill="#444444",width=2)
+    # Eyes: blink occasionally
+    blink = (int(t*3 + x) % 17 == 0)
+    if blink:
+        d.line((x-15*s,y-30*s,x-6*s,y-30*s),fill="#222222",width=3)
+        d.line((x+6*s,y-30*s,x+15*s,y-30*s),fill="#222222",width=3)
+    else:
+        ellipse(d,(x-15*s,y-34*s,x-6*s,y-20*s),"#222222")
+        ellipse(d,(x+6*s,y-34*s,x+15*s,y-20*s),"#222222")
+        ellipse(d,(x-12*s,y-32*s,x-9*s,y-27*s),"white",width=0)
+        ellipse(d,(x+9*s,y-32*s,x+12*s,y-27*s),"white",width=0)
+
+    # Nose and mouth
+    ellipse(d,(x-5*s,y-13*s,x+5*s,y-7*s),"#ec8c9f")
+    d.arc((x-12*s,y-8*s,x+12*s,y+9*s),0,180,fill="#444444",width=2)
 
     # Feet
-    el((x-32*scale,y+50*scale,x-5*scale,y+68*scale),c)
-    el((x+5*scale,y+50*scale,x+32*scale,y+68*scale),c)
+    ellipse(d,(x-32*s,y+50*s,x-5*s,y+68*s),c)
+    ellipse(d,(x+5*s,y+50*s,x+32*s,y+68*s),c)
 
-    # Animated arm
-    arm = math.sin(t*5)*20
-    d.line((x-25*scale,y+5*scale,x-48*scale,y+15*scale+arm),fill="#444444",width=4)
-    d.line((x+25*scale,y+5*scale,x+48*scale,y+15*scale-arm),fill="#444444",width=4)
+    # Swinging arms
+    arm = math.sin(t*5)*22
+    d.line((x-25*s,y+8*s,x-48*s,y+18*s+arm*s),
+           fill="#4a4038",width=max(3,int(5*s)))
+    d.line((x+25*s,y+8*s,x+48*s,y+18*s-arm*s),
+           fill="#4a4038",width=max(3,int(5*s)))
 
 def background(d, kind, t):
     palettes = {
@@ -133,23 +159,33 @@ def background(d, kind, t):
     d.rectangle((0,0,W,H),fill=sky)
 
     # Sun
-    sx = 420 + int(math.sin(t*.3)*12)
-    d.ellipse((sx-35,65,sx+35,135),fill="#ffe66d")
+    sx = 420 + int(math.sin(t*.3)*18)
+    ellipse(d,(sx-40,65,sx+40,145),"#ffe66d",width=0)
 
-    # Clouds
+    # Moving clouds
     for x,y in [(40,200),(300,160),(180,300)]:
-        shift = int(math.sin(t*.4+x)*12)
-        d.ellipse((x+shift,y,x+shift+90,y+35),fill="white")
-        d.ellipse((x+shift+20,y-18,x+shift+70,y+35),fill="white")
+        shift = int((t*12+x) % 600)-80
+        ellipse(d,(shift,y,shift+90,y+35),"white",width=0)
+        ellipse(d,(shift+20,y-18,shift+70,y+35),"white",width=0)
 
+    # Hills
     d.ellipse((-100,490,330,900),fill=green)
     d.ellipse((200,510,650,920),fill="#399b58")
 
+    # Trees
     for x,y in [(45,560),(465,540),(390,650)]:
         d.rectangle((x-8,y,x+8,y+120),fill="#80552e")
-        d.ellipse((x-42,y-65,x+42,y+25),fill="#238b45")
+        ellipse(d,(x-42,y-65,x+42,y+25),"#238b45",width=0)
 
     d.rectangle((0,760,W,H),fill="#319b55")
+
+    # Floating flowers / particles
+    random.seed(7)
+    for k in range(14):
+        px = (k*41 + int(t*18)) % W
+        py = 430 + (k*57 % 330) + math.sin(t+k)*8
+        ellipse(d,(px-4,py-4,px+4,py+4),
+               "#fff3a5" if k%2 else "#ffffff",width=0)
 
 def make_frame(i):
     t = i/FPS
@@ -159,40 +195,41 @@ def make_frame(i):
 
     img = Image.new("RGB",(W,H))
     d = ImageDraw.Draw(img)
-    background(d, data.get("background","forest"),t)
+    background(d,bg_kind,t)
 
-    # Scene-specific movement
-    center = 270 + math.sin(t*1.4)*30
+    # Characters move closer / farther depending on story action
+    center = 270 + math.sin(t*1.4)*35
     if visual in ("search","find","notice","worry"):
-        center += math.sin(t*2)*20
-    elif visual in ("play","celebrate","bloom"):
-        center += math.sin(t*4)*35
+        center += math.sin(t*2)*22
+    elif visual in ("play","celebrate","bloom","help"):
+        center += math.sin(t*4)*38
 
-    positions = [center-100, center+100]
+    positions = [center-100,center+100]
     for j,ch in enumerate(chars[:2]):
         kind = ch.get("animal","bunny")
-        x = max(65,min(W-65,positions[j]))
-        draw_animal(d,kind,x,690+j*8,t+j,visual)
+        x = max(70,min(W-70,positions[j]))
+        draw_animal(d,kind,x,700+j*8,t+j,visual)
 
-    # Title
+    # Story title
     title_text = wrap(title,title_font,460)
-    d.rounded_rectangle((15,45,W-15,150),radius=22,fill="white")
-    d.multiline_text((W/2,98),title_text,font=title_font,
+    d.rounded_rectangle((15,40,W-15,150),radius=22,fill="#ffffff")
+    d.multiline_text((W/2,95),title_text,font=title_font,
                      fill="#174b32",anchor="mm",align="center",spacing=5)
 
-    # Captions
+    # Scene captions
     caption = wrap(scene.get("text",story),font,460)
-    d.rounded_rectangle((15,790,W-15,945),radius=22,fill="white")
+    d.rounded_rectangle((15,790,W-15,945),radius=22,fill="#ffffff")
     d.multiline_text((W/2,865),caption,font=font,
                      fill="#202020",anchor="mm",align="center",spacing=8)
 
-    # Scene marker
-    d.rounded_rectangle((215,165,325,205),radius=15,fill="white")
-    d.text((270,185),f"Scene {si+1}/{scene_count}",fill="#174b32",anchor="mm")
+    # Scene progress
+    d.rounded_rectangle((205,165,335,205),radius=15,fill="white")
+    d.text((270,185),f"Scene {si+1}/{scene_count}",
+           fill="#174b32",font=small,anchor="mm")
 
     img.save(FRAMES/f"frame_{i:04d}.jpg",quality=88)
 
-print("Rendering story-based cartoon...")
+print("Rendering improved cartoon...")
 for i in range(total):
     make_frame(i)
 
