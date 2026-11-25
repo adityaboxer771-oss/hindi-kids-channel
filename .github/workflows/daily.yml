@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "30 3 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   generate:
     runs-on: ubuntu-latest
@@ -49,6 +52,14 @@ jobs:
 
       - name: Verify video automatically
         run: python scripts/verify_video.py
+
+      - name: Save story history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/story_generator.py story_history.json
+          git commit -m "Update Hindi kids story history" || echo "No history changes"
+          git push
 
       - name: Save generated files
         uses: actions/upload-artifact@v4
