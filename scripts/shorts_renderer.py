@@ -171,6 +171,20 @@ def draw_animal(d, kind, x, y, t, action, scale=1):
         ellipse(d,(x+22*s,y-72*s,x+48*s,y-35*s),c)
         ellipse(d,(x-48*s,y-72*s,x-22*s,y-35*s),c)
 
+    accessory_colors = {
+        "bunny": "#ff72ad",
+        "mouse": "#a77bff",
+        "panda": "#48b89a",
+        "parrot": "#ffcb45",
+        "cat": "#49a6e8",
+        "squirrel": "#e67e43",
+        "turtle": "#e4bd55"
+    }
+    ac = accessory_colors.get(kind, "#ff72ad")
+    d.polygon([(x-18*s,y+8*s),(x,y+23*s),(x+18*s,y+8*s)],
+              fill=ac)
+    ellipse(d,(x-5*s,y+10*s,x+5*s,y+20*s), "#fff4d6",width=0)
+
     blink = int(t*3+x) % 19 == 0
     worried = action in ("worry","rain")
     happy = action in ("celebrate","play","bloom","finish","picnic","home")
