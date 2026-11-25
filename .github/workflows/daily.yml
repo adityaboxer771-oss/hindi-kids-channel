@@ -42,6 +42,9 @@ jobs:
       - name: Mix narration and background music
         run: python scripts/mix_audio.py
 
+      - name: Generate scene sound effects
+        run: python scripts/generate_sfx.py
+
       - name: Render cartoon
         run: |
           sed -i 's|"/system/fonts/NotoSansDevanagari-VF.ttf",|"/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",|' scripts/shorts_renderer.py
