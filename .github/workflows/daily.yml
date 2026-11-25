@@ -47,12 +47,16 @@ jobs:
       - name: Generate thumbnail
         run: python scripts/thumbnail.py
 
+      - name: Verify video automatically
+        run: python scripts/verify_video.py
+
       - name: Save generated files
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: hindi-kids-cartoon
           path: |
             output/kids/short_final.mp4
             output/kids/thumbnail.png
             output/kids/story.json
-          if-no-files-found: error
+          if-no-files-found: warn
