@@ -11,7 +11,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    environment:1037125067449-avqfkfueq9tsmu4i03g9oomdf27iqmgp.apps.googleusercontent.com
+    environment: YT_CLIENT_ID
 
     steps:
       - uses: actions/checkout@v4
