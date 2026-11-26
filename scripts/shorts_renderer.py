@@ -1,3 +1,4 @@
+
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 import math, subprocess, shutil, json, random
@@ -6,12 +7,12 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "output/kids"
 FRAMES = OUT / "short_frames"
 W, H, FPS = 540, 960, 15
-TRANSITION = 0.55
+TRANSITION = 0.45
 
 OUT.mkdir(parents=True, exist_ok=True)
 if FRAMES.exists():
     shutil.rmtree(FRAMES)
-FRAMES.mkdir(parents=True, exist_ok=True)
+FRAMES.mkdir(parents=True)
 
 data = json.loads((OUT / "story.json").read_text(encoding="utf-8"))
 scenes = data.get("scenes", [])
@@ -27,7 +28,7 @@ font_paths = [
 ]
 fp = next((p for p in font_paths if Path(p).exists()), None)
 if not fp:
-    raise SystemExit("Hindi font nahi mila")
+    raise SystemExit("Hindi font missing")
 
 font = ImageFont.truetype(fp, 25)
 small = ImageFont.truetype(fp, 19)
@@ -52,14 +53,14 @@ total = duration * FPS
 scene_count = max(1, len(scenes))
 scene_seconds = duration / scene_count
 
-colors = {
+COLORS = {
     "bunny": "#f1eeee", "mouse": "#d5a6ad",
     "panda": "#eeeeee", "parrot": "#48bd64",
     "cat": "#f5a35c", "squirrel": "#bd7849",
     "turtle": "#8bc26c"
 }
 
-def ellipse(d, box, fill, outline="#4a4038", width=2):
+def ellipse(d, box, fill, outline=None, width=2):
     d.ellipse(tuple(int(v) for v in box),
               fill=fill, outline=outline, width=width)
 
@@ -77,74 +78,135 @@ def wrap(txt, f, width):
         lines.append(line)
     return "\n".join(lines)
 
-def draw_props(d, action, t):
-    if action in ("bloom", "garden", "care"):
-        for x, y in [(90,680),(430,675),(155,735),(380,730)]:
-            d.line((x,y,x,y+28),fill="#33874b",width=4)
-            for dx,dy,c in [(0,-8,"#ff67aa"),(-8,0,"#ffcc45"),
-                            (8,0,"#ff67aa"),(0,8,"#ffcc45")]:
-                ellipse(d,(x+dx-6,y+dy-6,x+dx+6,y+dy+6),c,width=0)
-            ellipse(d,(x-4,y-4,x+4,y+4),"#ffe66d",width=0)
+def detect_visual(scene):
+    v = str(scene.get("visual", "intro")).lower()
+    txt = str(scene.get("text", "")).lower()
+    combined = v + " " + txt
 
-    if action in ("picnic", "play", "celebrate"):
-        d.rounded_rectangle((65,665,145,720),radius=12,
-                           fill="#f4c65a",outline="#875b35",width=2)
-        for x in (85,115):
-            ellipse(d,(x-10,670,x+10,690),"#e75c51",width=0)
-        d.line((70,720,140,720),fill="#875b35",width=4)
+    mapping = {
+        "river": ["river", "water", "नदी", "पानी"],
+        "village": ["village", "घर", "गांव", "गाँव"],
+        "garden": ["garden", "flower", "फूल", "बगीचा"],
+        "forest": ["forest", "tree", "जंगल", "पेड़"],
+        "home": ["home", "house", "घर"],
+        "rain": ["rain", "बारिश", "बादल"],
+        "picnic": ["picnic", "पिकनिक"],
+    }
 
-    if action in ("water", "river", "rain"):
-        d.ellipse((65,720,475,825),fill="#5bc9e8")
-        for k in range(5):
-            x = 90+k*80
-            yy = 755+math.sin(t*3+k)*7
-            d.arc((x,yy,x+45,yy+20),0,180,fill="white",width=3)
+    for kind, words in mapping.items():
+        if any(w in combined for w in words):
+            return kind
+    return v
 
-    if action in ("find", "notice", "search"):
-        x,y = 440,620
-        d.rectangle((x-5,y,x+5,y+55),fill="#875b35")
-        ellipse(d,(x-45,y-55,x+45,y+15),"#398c49",width=0)
-        ellipse(d,(x-28,y-75,x+28,y-25),"#4da755",width=0)
+def draw_background(d, kind, t):
+    palettes = {
+        "forest": ("#91d9ff", "#62b86a"),
+        "garden": ("#b7e5ff", "#71cb78"),
+        "river": ("#9ce2ff", "#57b5c9"),
+        "village": ("#ffd89b", "#c3b476"),
+        "home": ("#ffdda8", "#8cc77a"),
+        "rain": ("#a8b9d0", "#659c79"),
+        "picnic": ("#a7e2ff", "#77c66d"),
+        "hills": ("#b7b2ef", "#7ebd80")
+    }
 
-    if action in ("home", "finish"):
-        d.rectangle((405,570,495,670),fill="#f6d49b",outline="#80552e",width=3)
-        d.polygon([(390,570),(450,520),(510,570)],fill="#c76547")
-        d.rectangle((440,615,465,670),fill="#865635")
-        d.rectangle((415,590,435,610),fill="#9ad9f3")
+    sky, grass = palettes.get(kind, palettes["forest"])
+    d.rectangle((0, 0, W, H), fill=sky)
 
-    if action in ("think", "plan"):
-        x,y = 420,480
-        ellipse(d,(x-25,y-25,x+25,y+25),"white",width=0)
-        ellipse(d,(x-6,y+30,x+6,y+42),"white",width=0)
-        ellipse(d,(x-2,y+45,x+6,y+53),"white",width=0)
+    if kind == "rain":
+        for x in range(0, W, 110):
+            d.ellipse((x, 130, x+140, 210), fill="#788ca8")
+        for k in range(24):
+            x = (k*31 + int(t*80)) % W
+            y = 180 + (k*37) % 400
+            d.line((x, y, x-5, y+20), fill="#d8edff", width=2)
 
-    if action in ("clean", "help"):
-        d.rectangle((390,680,435,730),fill="#f4d15e",outline="#775b32")
-        d.line((410,680,445,630),fill="#a7773f",width=5)
+    # Layered hills
+    for k in range(3):
+        y = 390 + k*50
+        d.ellipse((-120+k*70, y, W+120, y+250), fill=grass)
+
+    # Ground
+    d.rectangle((0, 760, W, H), fill=grass)
+
+    # River
+    if kind == "river":
+        d.polygon([(0,650),(170,600),(320,680),
+                   (540,590),(540,850),(0,850)],
+                  fill="#4ab7e0")
+        for x in range(40, 520, 85):
+            y = 720 + int(math.sin(t*3+x)*12)
+            d.arc((x,y,x+50,y+18),0,180,fill="white",width=3)
+
+    # Village houses
+    if kind == "village":
+        for x in (55, 330):
+            d.rectangle((x, 500, x+140, 700),
+                        fill="#ffe0ad", outline="#8c6240", width=3)
+            d.polygon([(x-15,500),(x+70,420),(x+155,500)],
+                      fill="#c96c50")
+            d.rectangle((x+55,590,x+90,700),fill="#875d43")
+            d.rectangle((x+15,540,x+45,580),fill="#91d9f5")
+            d.rectangle((x+100,540,x+125,580),fill="#91d9f5")
+
+    # Home interior
+    if kind == "home":
+        d.rectangle((30, 280, 510, 760), fill="#f8dcb6")
+        d.rectangle((0, 750, W, H), fill="#b68a61")
+        d.rectangle((65, 420, 180, 560), fill="#a4d9f2")
+        d.rectangle((330, 460, 460, 750), fill="#a46b47")
+        d.rectangle((350, 500, 440, 570), fill="#ffda89")
+
+    # Trees
+    for tx, ty in [(75,520),(440,490),(280,570)]:
+        d.rectangle((tx-12,ty,tx+12,ty+125),fill="#795438")
+        ellipse(d,(tx-65,ty-80,tx+65,ty+45),"#34864c",width=0)
+        ellipse(d,(tx-45,ty-125,tx+45,ty-35),"#4caa58",width=0)
+
+    # Sun
+    if kind != "rain":
+        sx = 420 + int(math.sin(t*.3)*15)
+        ellipse(d,(sx-38,65,sx+38,145),"#ffe66d",width=0)
+
+    # Clouds
+    for x,y in [(40,190),(260,150),(420,280)]:
+        shift = int((t*10+x) % 600)-80
+        ellipse(d,(shift,y,shift+90,y+35),"white",width=0)
+        ellipse(d,(shift+20,y-15,shift+65,y+35),"white",width=0)
+
+    # Animated grass flowers
+    for k in range(15):
+        x = (k*41 + int(t*10)) % W
+        y = 820 + (k*13 % 100)
+        ellipse(d,(x-4,y-4,x+4,y+4),
+               "#fff3a5" if k%2 else "white",width=0)
 
 def draw_animal(d, kind, x, y, t, action, scale=1):
-    c = colors.get(kind, "#e8c18c")
     s = scale
+    c = COLORS.get(kind, "#e8c18c")
 
     walking = action in ("move","return","walk","search")
     jumping = action in ("play","celebrate","bloom","help","finish")
-    bounce = abs(math.sin(t*5))*22 if jumping else math.sin(t*2)*5
 
+    bounce = abs(math.sin(t*5))*18 if jumping else math.sin(t*2)*5
     if walking:
         bounce = abs(math.sin(t*7))*10
     y -= bounce
 
+    # Tail
     if kind in ("cat","squirrel"):
-        tail = math.sin(t*3)*20
         d.arc((x+20*s,y+15*s,x+75*s,y+100*s),
-              180+tail,320+tail,fill=c,width=max(3,int(9*s)))
+              180,320,fill=c,width=max(3,int(9*s)))
 
+    # Turtle shell
     if kind == "turtle":
         ellipse(d,(x-40*s,y+5*s,x+40*s,y+55*s),"#598d49")
         ellipse(d,(x-28*s,y-5*s,x+28*s,y+60*s),c)
 
+    # Body
     ellipse(d,(x-36*s,y-65*s,x+36*s,y+10*s),c)
 
+    # Ears
     if kind == "bunny":
         ellipse(d,(x-23*s,y-120*s,x-5*s,y-45*s),c)
         ellipse(d,(x+5*s,y-120*s,x+23*s,y-45*s),c)
@@ -164,67 +226,46 @@ def draw_animal(d, kind, x, y, t, action, scale=1):
         d.polygon([(x-18*s,y+10*s),(x-45*s,y+38*s),(x-12*s,y+30*s)],fill="#2988b7")
 
     elif kind == "panda":
-        ellipse(d,(x-43*s,y-65*s,x-10*s,y-28*s),"#222222")
-        ellipse(d,(x+10*s,y-65*s,x+43*s,y-28*s),"#222222")
+        ellipse(d,(x-43*s,y-65*s,x-10*s,y-28*s),"#222")
+        ellipse(d,(x+10*s,y-65*s,x+43*s,y-28*s),"#222")
 
     elif kind == "squirrel":
         ellipse(d,(x+22*s,y-72*s,x+48*s,y-35*s),c)
         ellipse(d,(x-48*s,y-72*s,x-22*s,y-35*s),c)
 
-    accessory_colors = {
-        "bunny": "#ff72ad",
-        "mouse": "#a77bff",
-        "panda": "#48b89a",
-        "parrot": "#ffcb45",
-        "cat": "#49a6e8",
-        "squirrel": "#e67e43",
-        "turtle": "#e4bd55"
-    }
-    ac = accessory_colors.get(kind, "#ff72ad")
-    d.polygon([(x-18*s,y+8*s),(x,y+23*s),(x+18*s,y+8*s)],
-              fill=ac)
-    ellipse(d,(x-5*s,y+10*s,x+5*s,y+20*s), "#fff4d6",width=0)
+    # Bow
+    ac = {"bunny":"#ff72ad","mouse":"#a77bff",
+          "panda":"#48b89a","parrot":"#ffcb45",
+          "cat":"#49a6e8","squirrel":"#e67e43",
+          "turtle":"#e4bd55"}.get(kind,"#ff72ad")
+    d.polygon([(x-18*s,y+8*s),(x,y+23*s),(x+18*s,y+8*s)],fill=ac)
 
+    # Eyes
     blink = int(t*3+x) % 19 == 0
-    worried = action in ("worry","rain")
-    happy = action in ("celebrate","play","bloom","finish","picnic","home")
-    thinking = action in ("think","plan","notice")
-
     if blink:
         d.line((x-15*s,y-30*s,x-6*s,y-30*s),fill="#222",width=3)
         d.line((x+6*s,y-30*s,x+15*s,y-30*s),fill="#222",width=3)
     else:
         ellipse(d,(x-15*s,y-34*s,x-6*s,y-20*s),"#222",width=0)
         ellipse(d,(x+6*s,y-34*s,x+15*s,y-20*s),"#222",width=0)
-        ellipse(d,(x-12*s,y-32*s,x-9*s,y-27*s),"white",width=0)
-        ellipse(d,(x+9*s,y-32*s,x+12*s,y-27*s),"white",width=0)
 
-    if worried:
-        d.line((x-18*s,y-43*s,x-7*s,y-39*s),fill="#4a4038",width=3)
-        d.line((x+7*s,y-39*s,x+18*s,y-43*s),fill="#4a4038",width=3)
-    elif thinking:
-        d.line((x-18*s,y-43*s,x-7*s,y-43*s),fill="#4a4038",width=2)
-        d.line((x+7*s,y-47*s,x+18*s,y-43*s),fill="#4a4038",width=2)
-
+    # Nose
     ellipse(d,(x-5*s,y-13*s,x+5*s,y-7*s),"#ec8c9f",width=0)
-    talk_cycle = math.sin(t*12)
-    talking = talk_cycle > -0.15
-    mouth_open = abs(talk_cycle)
 
-
+    # Mouth
+    happy = action in ("celebrate","play","bloom","finish","picnic","home")
     if happy:
         d.arc((x-15*s,y-10*s,x+15*s,y+15*s),0,180,fill="#444",width=3)
-    elif talking:
-        mouth_h = max(3, int((4 + mouth_open*9)*s))
-        ellipse(d,(x-7*s,y-4*s,x+7*s,y-4*s+mouth_h),
-                "#873e48",width=0)
     else:
-        d.line((x-6*s,y+2*s,x+6*s,y+2*s),fill="#444",width=2)
+        talk = abs(math.sin(t*12))
+        ellipse(d,(x-7*s,y-4*s,x+7*s,y+4*s*talk+4),"#873e48",width=0)
 
+    # Legs
     step = math.sin(t*7)*12 if walking else 0
     ellipse(d,(x-32*s,y+50*s+step,x-5*s,y+68*s+step),c)
     ellipse(d,(x+5*s,y+50*s-step,x+32*s,y+68*s-step),c)
 
+    # Arms
     arm = math.sin(t*5)*22
     if happy:
         arm = math.sin(t*8)*35
@@ -236,176 +277,107 @@ def draw_animal(d, kind, x, y, t, action, scale=1):
     d.line((x+25*s,y+8*s,x+48*s,y+18*s-arm*s),
            fill="#4a4038",width=max(3,int(5*s)))
 
-def background(d, kind, t):
-    palettes = {
-        "forest": ("#87ceeb","#72c875"),
-        "garden": ("#a8ddff","#69c987"),
-        "river": ("#91d8ff","#65b8c4"),
-        "village": ("#ffdc9c","#c7b777"),
-        "hills": ("#b9a9ee","#83bb80")
-    }
-    sky, green = palettes.get(kind, palettes["forest"])
+def draw_props(d, action, t):
+    if action in ("bloom","garden","care"):
+        for x,y in [(90,680),(430,675),(155,735),(380,730)]:
+            d.line((x,y,x,y+28),fill="#33874b",width=4)
+            for dx,dy,c in [(0,-8,"#ff67aa"),(-8,0,"#ffcc45"),
+                            (8,0,"#ff67aa"),(0,8,"#ffcc45")]:
+                ellipse(d,(x+dx-6,y+dy-6,x+dx+6,y+dy+6),c,width=0)
+            ellipse(d,(x-4,y-4,x+4,y+4),"#ffe66d",width=0)
 
-    d.rectangle((0,0,W,H),fill=sky)
+    if action in ("picnic","play","celebrate"):
+        d.rounded_rectangle((65,665,145,720),radius=12,
+                           fill="#f4c65a",outline="#875b35",width=2)
 
-    # distant layered hills
-    for k in range(3):
-        hy = 390 + k*55
-        d.ellipse((-120+k*80,hy,W+120-k*60,hy+230),
-                  fill=green)
+    if action in ("water","river","rain"):
+        d.ellipse((65,720,475,825),fill="#5bc9e8")
 
-    # foreground bushes
-    for bx in range(-40,W+100,150):
-        by = 650 + int(math.sin(t*0.5+bx)*8)
-        ellipse(d,(bx,by,bx+180,by+120),
-                "#438b52",width=0)
+    if action in ("find","notice","search"):
+        x,y=440,620
+        d.rectangle((x-5,y,x+5,y+55),fill="#875b35")
+        ellipse(d,(x-45,y-55,x+45,y+15),"#398c49",width=0)
 
-    # decorative trees
-    for tx,ty in [(100,480),(W-130,450),(340,520)]:
-        d.rectangle((tx-12,ty,tx+12,ty+120),
-                   fill="#795438")
-        for rr in [(tx-65,ty-80,tx+65,ty+45),
-                   (tx-45,ty-125,tx+45,ty-35)]:
-            ellipse(d,rr,"#34864c",width=0)
-
-
-    sx = 420 + int(math.sin(t*.3)*18)
-    ellipse(d,(sx-40,65,sx+40,145),"#ffe66d",width=0)
-
-    for x,y in [(40,200),(300,160),(180,300)]:
-        shift = int((t*12+x) % 600)-80
-        ellipse(d,(shift,y,shift+90,y+35),"white",width=0)
-        ellipse(d,(shift+20,y-18,shift+70,y+35),"white",width=0)
-
-    d.ellipse((-100,490,330,900),fill=green)
-    d.ellipse((200,510,650,920),fill="#399b58")
-
-    for x,y in [(45,560),(465,540),(390,650)]:
-        d.rectangle((x-8,y,x+8,y+120),fill="#80552e")
-        ellipse(d,(x-42,y-65,x+42,y+25),"#238b45",width=0)
-
-    d.rectangle((0,760,W,H),fill="#319b55")
-    random.seed(7)
-    for k in range(14):
-        px = (k*41 + int(t*18)) % W
-        py = 430 + (k*57 % 330) + math.sin(t+k)*8
-        ellipse(d,(px-4,py-4,px+4,py+4),
-               "#fff3a5" if k%2 else "#ffffff",width=0)
-
-def draw_action_effect(d, visual, t, x, y):
-    phase = abs(math.sin(t*4))
-    if visual in ("notice", "find", "search"):
-        r = 22 + int(phase*8)
-        d.ellipse((x-r,y-r,x+r,y+r),outline="#f4b942",width=5)
-        d.ellipse((x-5,y-5,x+5,y+5),fill="#f4b942")
-    elif visual in ("help", "teamwork"):
-        r = 16 + int(phase*5)
-        d.ellipse((x-r,y-r,x+r,y+r),fill="#ffcf70")
-    elif visual in ("celebrate", "finish", "bloom"):
-        for a in range(0,360,60):
-            rad = math.radians(a+t*20)
-            sx = x + int(math.cos(rad)*35)
-            sy = y + int(math.sin(rad)*35)
-            d.ellipse((sx-7,sy-7,sx+7,sy+7),fill="#ffd95c")
-    elif visual in ("worry", "problem"):
-        d.ellipse((x-18,y-18,x+18,y+18),fill="#b7d9ff")
-    elif visual in ("play", "picnic"):
-        r = 15 + int(phase*7)
-        d.ellipse((x-r,y-r,x+r,y+r),fill="#a7e8a1")
-
+    if action in ("clean","help"):
+        d.rectangle((390,680,435,730),fill="#f4d15e")
+        d.line((410,680,445,630),fill="#a7773f",width=5)
 
 def make_scene_frame(i, si):
     t = i/FPS
     si = max(0,min(si,scene_count-1))
     scene = scenes[si] if scenes else {}
-    visual = scene.get("visual","intro")
+    visual = detect_visual(scene)
 
     img = Image.new("RGB",(W,H))
     d = ImageDraw.Draw(img)
-    background(d,bg_kind,t)
+
+    draw_background(d,visual,t)
     draw_props(d,visual,t)
 
-    center = 270 + math.sin(t*1.4)*35
-    if visual in ("search","find","notice","worry"):
-        center += math.sin(t*2)*22
-    elif visual in ("play","celebrate","bloom","help","finish","picnic"):
-        center += math.sin(t*4)*38
-
+    center = 270 + math.sin(t*1.4)*25
     positions = [center-100,center+100]
-    action_offsets = {
-        "walk": -45, "move": 45, "return": 70,
-        "search": -35, "find": 35, "help": 0,
-        "celebrate": 0, "finish": 0, "play": 0,
-        "picnic": 0, "bloom": 0, "notice": 0,
-        "worry": 0, "think": 0, "plan": 0
-    }
-    offset = action_offsets.get(visual, 0)
-    movement = math.sin(t*3)*18 if visual in ("walk","move","return","search") else 0
 
     for j,ch in enumerate(chars[:2]):
         kind = ch.get("animal","bunny")
-        direction = -1 if j == 0 else 1
-        x = max(70,min(W-70,positions[j] + direction*offset + movement*direction))
-        y = 700 + int(math.sin(t*3+j)*12)
-
+        direction = -1 if j==0 else 1
+        movement = math.sin(t*3)*20 if visual in ("walk","move","return","search") else 0
+        x = max(70,min(W-70,positions[j]+movement*direction))
+        y = 700 + int(math.sin(t*3+j)*10)
         draw_animal(d,kind,x,y,t+j,visual)
 
-        if visual in ("notice","find","search","help","celebrate",
-                      "finish","play","bloom","picnic","worry"):
-            draw_action_effect(d,visual,t,x,y-180)
-
+    # Title panel
     title_text = wrap(title,title_font,460)
     d.rounded_rectangle((15,40,W-15,150),radius=22,fill="white")
     d.multiline_text((W/2,95),title_text,font=title_font,
                      fill="#174b32",anchor="mm",align="center",spacing=5)
 
+    # Story captions
     caption = wrap(scene.get("text",story),font,460)
     d.rounded_rectangle((15,790,W-15,945),radius=22,fill="white")
     d.multiline_text((W/2,865),caption,font=font,
                      fill="#202020",anchor="mm",align="center",spacing=8)
 
+    # Scene label
     d.rounded_rectangle((205,165,335,205),radius=15,fill="white")
     d.text((270,185),f"Scene {si+1}/{scene_count}",
            fill="#174b32",font=small,anchor="mm")
 
-    zoom = 1.0 + 0.035*math.sin(t*1.6+si)
-    nw, nh = int(W*zoom), int(H*zoom)
-    img = img.resize((nw,nh),Image.Resampling.LANCZOS)
-
-    pan_x = int(math.sin(t*1.2+si)*8)
-    pan_y = int(math.sin(t*.8+si)*6)
-    left = max(0,min(nw-W,(nw-W)//2+pan_x))
-    top = max(0,min(nh-H,(nh-H)//2+pan_y))
-    img = img.crop((left,top,left+W,top+H))
+    # Camera zoom
+    zoom = 1.0 + 0.025*math.sin(t*1.6+si)
+    nw,nh=int(W*zoom),int(H*zoom)
+    img=img.resize((nw,nh),Image.Resampling.LANCZOS)
+    left=max(0,min(nw-W,(nw-W)//2))
+    top=max(0,min(nh-H,(nh-H)//2))
+    img=img.crop((left,top,left+W,top+H))
     return img
 
 def make_frame(i):
-    t = i/FPS
-    si = min(int(t/scene_seconds),scene_count-1) if scenes else 0
+    t=i/FPS
+    si=min(int(t/scene_seconds),scene_count-1) if scenes else 0
 
     if scenes:
         for boundary_idx in range(1,scene_count):
-            boundary = boundary_idx*scene_seconds
-            start = boundary-TRANSITION/2
-            end = boundary+TRANSITION/2
+            boundary=boundary_idx*scene_seconds
+            start=boundary-TRANSITION/2
+            end=boundary+TRANSITION/2
 
-            if start <= t <= end:
-                alpha = max(0.0,min(1.0,(t-start)/TRANSITION))
-                prev_img = make_scene_frame(i,boundary_idx-1)
-                next_img = make_scene_frame(i,boundary_idx)
-                img = Image.blend(prev_img,next_img,alpha)
+            if start<=t<=end:
+                alpha=max(0.0,min(1.0,(t-start)/TRANSITION))
+                prev=make_scene_frame(i,boundary_idx-1)
+                nxt=make_scene_frame(i,boundary_idx)
+                img=Image.blend(prev,nxt,alpha)
                 img.save(FRAMES/f"frame_{i:04d}.jpg",quality=88)
                 return
 
-    img = make_scene_frame(i,si)
+    img=make_scene_frame(i,si)
     img.save(FRAMES/f"frame_{i:04d}.jpg",quality=88)
 
-print("Rendering Stage 8 cartoon...")
+print("Rendering Cartoon Engine v2...")
 for i in range(total):
     make_frame(i)
 
-video = OUT/"short_video.mp4"
-final = OUT/"short_final.mp4"
+video=OUT/"short_video.mp4"
+final=OUT/"short_final.mp4"
 
 subprocess.run([
     "ffmpeg","-y","-framerate",str(FPS),
@@ -425,4 +397,5 @@ if audio.exists():
 else:
     shutil.copy(video,final)
 
-print("STAGE 8 SHORT READY:",final)
+print("CARTOON ENGINE V2 READY:",final)
+
