@@ -1,0 +1,1 @@
+Ye app sirf mere apne YouTube channel par video upload karta hai. Koi user data store ya share nahi hota.
