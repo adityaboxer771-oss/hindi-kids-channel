@@ -1,0 +1,55 @@
+name: Daily Hindi Kids Cartoon
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-extra
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python packages
+        run: pip install pillow edge-tts
+
+      - name: Generate new Hindi story
+        run: python scripts/story_generator.py
+
+      - name: Generate Hindi voice
+        run: |
+          python -c "import json; from pathlib import Path; d=json.loads(Path('output/kids/story.json').read_text(encoding='utf-8')); print(d['story'])" > output/kids/story.txt
+          python scripts/voice.py "$(cat output/kids/story.txt)"
+
+      - name: Prepare audio
+        run: cp output/kids/voice.mp3 output/kids/final_audio.mp3
+
+      - name: Render cartoon
+        run: |
+          sed -i 's|"/system/fonts/NotoSansDevanagari-VF.ttf",|"/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",|' scripts/shorts_renderer.py
+          python scripts/shorts_renderer.py
+
+      - name: Generate thumbnail
+        run: python scripts/thumbnail.py
+
+      - name: Save generated files
+        uses: actions/upload-artifact@v4
+        with:
+          name: hindi-kids-cartoon
+          path: |
+            output/kids/short_final.mp4
+            output/kids/thumbnail.png
+            output/kids/story.json
+          if-no-files-found: error
