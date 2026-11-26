@@ -11,6 +11,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    environment:1037125067449-avqfkfueq9tsmu4i03g9oomdf27iqmgp.apps.googleusercontent.com
 
     steps:
       - uses: actions/checkout@v4
@@ -74,3 +75,4 @@ jobs:
             output/kids/thumbnail.png
             output/kids/story.json
           if-no-files-found: warn
+
