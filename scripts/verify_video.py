@@ -41,7 +41,9 @@ if not errors:
         if not vs:
             errors.append("Video stream missing")
         else:
-            if (vs.get("width"), vs.get("height")) != (540, 960):
+            
+if (vs.get("width"), vs.get("height")) != (1080, 1920):
+
                 errors.append(f"Unexpected resolution: {vs.get('width')}x{vs.get('height')}")
             else:
                 checks.append("Resolution OK")
