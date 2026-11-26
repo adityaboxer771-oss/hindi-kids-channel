@@ -35,6 +35,7 @@ jobs:
       - name: Generate Hindi voice
         run: |
           python -c "import json; from pathlib import Path; d=json.loads(Path('output/kids/story.json').read_text(encoding='utf-8')); print(d['story'])" > output/kids/story.txt
+      output/kids/qc_report.json
           python scripts/voice.py "$(cat output/kids/story.txt)"
 
       - name: Generate original background music
@@ -74,5 +75,6 @@ jobs:
             output/kids/short_final.mp4
             output/kids/thumbnail.png
             output/kids/story.json
+      output/kids/qc_report.json
           if-no-files-found: warn
 
