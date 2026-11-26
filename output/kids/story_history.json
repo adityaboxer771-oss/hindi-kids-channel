@@ -16,5 +16,11 @@
     "event_index": 5,
     "character_pair": "(1, 4)",
     "background": "hills"
+  },
+  {
+    "title": "बिल्लू बिल्ली और पिंकू गिलहरी की दोस्ती",
+    "event_index": 0,
+    "character_pair": "(4, 5)",
+    "background": "garden"
   }
 ]
